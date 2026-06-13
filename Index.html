@@ -1,0 +1,761 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Workforce Manager - Secure Ledger</title>
+    <style>
+        :root {
+            --primary-bg: #f4f6f9;
+            --sidebar-bg: #0b1426;
+            --sidebar-active: #2563eb;
+            --card-border: #e2e8f0;
+            --text-dark: #1a365d;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--primary-bg);
+            margin: 0;
+            padding: 0;
+            color: #333;
+        }
+
+        /* LOGIN SCREEN STYLING */
+        #login-page {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background-color: var(--sidebar-bg);
+        }
+        .login-card {
+            background: white;
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+            width: 100%;
+            max-width: 400px;
+            text-align: center;
+        }
+        .login-card h2 { border: none; margin-bottom: 20px; }
+        .login-input {
+            width: 100%;
+            padding: 12px;
+            margin: 10px 0;
+            border: 1px solid #cbd5e0;
+            border-radius: 6px;
+            box-sizing: border-box;
+            font-size: 16px;
+        }
+
+        /* MAIN APP LAYOUT */
+        #app-container-wrapper {
+            display: none; /* Hidden until login */
+            min-height: 100vh;
+        }
+        .app-body {
+            display: flex;
+            min-height: 100vh;
+        }
+        .sidebar {
+            width: 260px;
+            background-color: var(--sidebar-bg);
+            color: #fff;
+            display: flex;
+            flex-direction: column;
+            flex-shrink: 0;
+            position: sticky;
+            top: 0;
+            height: 100vh;
+            box-sizing: border-box;
+            padding: 20px 0;
+        }
+        .sidebar-brand {
+            padding: 0 24px 20px 24px;
+            border-bottom: 1px solid #1e293b;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .sidebar-brand h2 { font-size: 16px; margin: 0; color: #fff; }
+        .sidebar-brand p { margin: 2px 0 0 0; font-size: 11px; color: #94a3b8; }
+        .sidebar-menu { list-style: none; padding: 20px 12px; margin: 0; display: flex; flex-direction: column; gap: 4px; }
+        .menu-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            color: #94a3b8;
+            text-decoration: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .menu-item:hover { background-color: #1e293b; color: #fff; }
+        .menu-item.active { background-color: var(--sidebar-active); color: #fff; }
+        .sidebar-footer { margin-top: auto; padding: 16px 24px; border-top: 1px solid #1e293b; font-size: 12px; color: #64748b; }
+
+        .main-content { flex-grow: 1; padding: 30px; box-sizing: border-box; overflow-y: auto; }
+        .view-section { display: none; }
+        .view-section.active-view { display: block; }
+
+        .app-container { background: #fff; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.03); margin-bottom: 25px; }
+        h2, h3 { color: var(--text-dark); border-bottom: 2px solid #e2e8f0; padding-bottom: 10px; margin-top: 0; }
+        .grid-inputs { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; margin-bottom: 20px; }
+        .input-group { display: flex; flex-direction: column; }
+        label { font-weight: 600; margin-bottom: 8px; font-size: 13px; color: #4a5568; }
+        input, select { padding: 10px; border: 1px solid #cbd5e0; border-radius: 6px; font-size: 15px; width: 100%; box-sizing: border-box; background-color: #fff; }
+        input:readonly { background-color: #e2e8f0; color: #4a5568; font-weight: bold; cursor: not-allowed; }
+
+        .table-responsive { overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; min-width: 1350px; }
+        th, td { text-align: left; padding: 10px 8px; border-bottom: 1px solid #e2e8f0; font-size: 14px; }
+        th { background-color: #edf2f7; color: #2d3748; font-size: 12px; text-transform: uppercase; }
+        .row-total { font-weight: bold; color: #4a5568; }
+        .row-balance { font-weight: bold; font-size: 14px; }
+        .balance-dues { color: #dc2626; background-color: #fef2f2; }
+        .balance-extra { color: #16a34a; background-color: #f0fdf4; }
+        .salary-input { border: 1px solid #2563eb; background-color: #f8fafc; font-weight: bold; }
+        
+        .btn { padding: 12px 20px; font-size: 14px; font-weight: bold; border-radius: 6px; cursor: pointer; border: none; transition: background 0.2s; }
+        .btn-primary { background-color: #2563eb; color: white; }
+        .btn-primary:hover { background-color: #1d4ed8; }
+        .btn-success { background-color: #16a34a; color: white; }
+        .btn-success:hover { background-color: #15803d; }
+        .btn-danger { background-color: #dc2626; color: white; }
+        .btn-danger:hover { background-color: #b91c1c; }
+        .btn-action { padding: 6px 10px; font-size: 12px; border-radius: 4px; background-color: #e2e8f0; color: #1a365d; font-weight: bold; cursor: pointer; }
+        .btn-action:hover { background-color: #cbd5e0; }
+        .btn-delete-log { background: none; border: none; color: #dc2626; cursor: pointer; font-size: 16px; }
+
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(4px);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-body {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            max-width: 650px;
+            width: 90%;
+            max-height: 85vh;
+            overflow-y: auto;
+            position: relative;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+        }
+        .close-modal { position: absolute; top: 15px; right: 20px; font-size: 24px; font-weight: bold; cursor: pointer; color: #aaa; }
+        .close-modal:hover { color: #000; }
+
+        .slip-header { text-align: center; border-bottom: 2px dashed #000; padding-bottom: 12px; margin-bottom: 20px; }
+        .slip-header h2 { margin: 0; padding: 0; font-size: 20px; color: #000; border: none; font-weight: 700; }
+        
+        .info-block { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 14px; border-bottom: 1px solid #eee; padding-bottom: 4px; }
+        .section-divider { background: #f2f2f2; font-weight: bold; font-size: 12px; padding: 6px 10px; margin: 15px 0 10px 0; border-left: 4px solid #000; text-transform: uppercase; letter-spacing: 0.5px; }
+        
+        .room-worker-card { background: #fafafa; border: 1px solid #ddd; border-radius: 6px; padding: 12px; margin-bottom: 15px; }
+        .room-worker-title { font-weight: bold; font-size: 14px; color: #1a365d; border-bottom: 1px solid #ccc; padding-bottom: 4px; margin-bottom: 8px; text-transform: uppercase; display: flex; justify-content: space-between; }
+
+        .slip-total-box { 
+            margin-top: 25px; padding: 14px; border: 2px solid #000; 
+            display: flex; justify-content: space-between; font-size: 16px; font-weight: bold;
+            background-color: #fafafa !important;
+        }
+        .slip-footer-sig { margin-top: 50px; display: flex; justify-content: space-between; padding: 0 10px; font-size: 13px; }
+        .sig-line { border-top: 1px solid #000; width: 150px; text-align: center; padding-top: 6px; margin-top: 30px; }
+
+        #printContainer { display: none; }
+        
+        @media print {
+            @page { size: A4 portrait; margin: 15mm; }
+            html, body { width: 100% !important; background: #fff !important; margin: 0 !important; padding: 0 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            #login-page, .sidebar, .main-content, .modal-overlay, .btn, nav { display: none !important; }
+            #printContainer { display: block !important; width: 100% !important; margin: 0 !important; padding: 0 !important; }
+            .print-slip { page-break-after: always; page-break-inside: avoid; padding: 10px !important; width: 100% !important; box-sizing: border-box !important; background: #fff !important; color: #000 !important; }
+            .info-block { font-size: 14px !important; margin-bottom: 10px !important; border-bottom: 1px dashed #ccc !important; padding-bottom: 6px !important; }
+            .room-worker-card { background: #fff !important; border: 1px solid #000 !important; page-break-inside: avoid !important; }
+            .slip-total-box { font-size: 18px !important; padding: 14px !important; margin-top: 30px !important; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- SECURE GATEWAY LOGIN PAGE -->
+    <div id="login-page">
+        <div class="login-card">
+            <h2>🏢 Workforce Admin Hub</h2>
+            <p style="color: #64748b; font-size: 14px; margin-bottom: 20px;">Please authenticate to access the ledger system.</p>
+            <input type="text" id="username" class="login-input" placeholder="Admin Username">
+            <input type="password" id="password" class="login-input" placeholder="System Password">
+            <button class="btn btn-primary" style="width: 100%; margin-top: 15px;" onclick="handleLoginSubmit()">🔓 Log In Securly</button>
+            <p id="login-error" style="color: #dc2626; font-size: 13px; margin-top: 12px; display: none;">❌ Incorrect credentials. Please try again.</p>
+        </div>
+    </div>
+
+    <!-- MAIN APP WRAPPER -->
+    <div id="app-container-wrapper">
+        <div class="app-body">
+            <nav class="sidebar">
+                <div class="sidebar-brand">
+                    <div style="background: var(--sidebar-active); padding: 8px; border-radius: 6px;">🏢</div>
+                    <div>
+                        <h2>Workforce</h2>
+                        <p>Accounting Hub</p>
+                    </div>
+                </div>
+                <ul class="sidebar-menu">
+                    <li><a class="menu-item active" onclick="switchView('tracker', this)">👥 Workforce Ledger Matrix</a></li>
+                    <li><a class="menu-item" onclick="switchView('advances', this)">💰 Advance Vault Logs</a></li>
+                    <li><a class="menu-item" onclick="switchView('reports', this)">📋 Payroll Print Centre</a></li>
+                    <li><a class="menu-item" style="color:#ef4444; margin-top:20px;" onclick="handleLogout()">🚪 Log Out</a></li>
+                </ul>
+                <div class="sidebar-footer">Admin Management Panel</div>
+            </nav>
+
+            <main class="main-content">
+                <!-- VIEW 1: TRACKER -->
+                <section id="view-tracker" class="view-section active-view">
+                    <h2>Workforce Operations & Financial Ledger</h2>
+                    <div class="app-container">
+                        <div class="grid-inputs">
+                            <div class="input-group"><label>Total Food Bill Pool (SAR)</label><input type="number" id="totalFoodBill" value="0" oninput="calculateExpenses()"></div>
+                            <div class="input-group"><label>Total System Man-Days</label><input type="number" id="totalManDays" value="0" readonly></div>
+                            <div class="input-group"><label>Cook Setup Fee (SAR)</label><input type="number" id="cookFee" value="0" oninput="calculateExpenses()"></div>
+                            <div class="input-group"><label>Rent Per Room Pool (SAR)</label><input type="number" id="roomRent" value="0" oninput="calculateExpenses()"></div>
+                            <div class="input-group"><label>Total Washroom Fee (SAR)</label><input type="number" id="washroomFeeMaster" value="0" oninput="calculateExpenses()"></div>
+                        </div>
+
+                        <div class="table-responsive">
+                            <table id="workerTable">
+                                <thead>
+                                    <tr>
+                                        <th style="width: 50px;">Room</th>
+                                        <th style="width: 140px;">Worker Name</th>
+                                        <th style="width: 90px;">Base Salary</th>
+                                        <th style="width: 50px;">Days</th>
+                                        <th style="width: 50px;">Occ.</th>
+                                        <th>Food Share</th>
+                                        <th>Room Rent</th>
+                                        <th>Washroom</th>
+                                        <th>Cook Fee</th>
+                                        <th>Total Exp.</th>
+                                        <th>Food Adv</th>
+                                        <th>Cash Adv</th>
+                                        <th style="width: 110px;">Rem. Balance</th>
+                                        <th style="width: 130px; text-align: center;">Live Report</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="workerRows"></tbody>
+                            </table>
+                        </div>
+                        <div style="margin-top: 20px; display: flex; gap: 10px;">
+                            <button class="btn btn-primary" onclick="addNewBlankRow()">➕ Append Custom Row Entry</button>
+                            <button class="btn btn-danger" onclick="resetToPdfDefaults()">🔄 Clear Local Storage Database</button>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- VIEW 2: ADVANCES -->
+                <section id="view-advances" class="view-section">
+                    <h2>Advance Registry Module</h2>
+                    <div class="app-container">
+                        <h3>Record New Independent Advance Allocation</h3>
+                        <form id="advanceForm" onsubmit="handleCreateAdvance(event)" class="grid-inputs" style="align-items: flex-end;">
+                            <div class="input-group"><label>Target Worker Assignment</label><select id="advWorkerSelect" required></select></div>
+                            <div class="input-group">
+                                <label>Advance Category</label>
+                                <select id="advType" required>
+                                    <option value="Food">Food Advance (Meal Funds)</option>
+                                    <option value="Cash">Cash Advance (Personal Money)</option>
+                                </select>
+                            </div>
+                            <div class="input-group"><label>Amount Transferred (SAR)</label><input type="number" id="advAmount" step="0.01" required></div>
+                            <div class="input-group"><label>Date Disbursed</label><input type="date" id="advDate" required></div>
+                            <div class="input-group"><label>Memo Reference</label><input type="text" id="advNote" placeholder="Optional notes..."></div>
+                            <button type="submit" class="btn btn-primary" style="width:100%;">💾 Save Vault Entry</button>
+                        </form>
+                    </div>
+
+                    <div class="app-container">
+                        <h3>Active Cashier Vault Audit Trail</h3>
+                        <div class="table-responsive">
+                            <table style="min-width: 900px;">
+                                <thead>
+                                    <tr>
+                                        <th>Date Logged</th>
+                                        <th>Worker Association</th>
+                                        <th>Category Type</th>
+                                        <th>Memo Reference</th>
+                                        <th>Amount Checked Out</th>
+                                        <th style="width: 60px; text-align: center;">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="advanceHistoryRows"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- VIEW 3: PRINT CENTRE -->
+                <section id="view-reports" class="view-section">
+                    <h2>Output Statement Operations</h2>
+                    <div class="app-container">
+                        <h3>Generate Individual Labor Account Statements</h3>
+                        <p>Compiles a printable itemized ledger slip layout per worker on separate pages, complete with deductions and remaining payment figures.</p>
+                        <button class="btn btn-success" onclick="generateAndPrintLaborSlips()">🖨️ Print Individual Labor Report Slips</button>
+                    </div>
+
+                    <div class="app-container">
+                        <h3>Generate Separate Room Expense Summary Reports</h3>
+                        <p>Select a specific room below to view an itemized list of all occupants inside that room along with their individual expenses.</p>
+                        <div style="display: flex; gap: 15px; align-items: flex-end; max-width: 500px;">
+                            <div class="input-group" style="flex: 1;">
+                                <label>Select Target Room Number</label>
+                                <select id="printRoomSelect"><option value="">-- Choose Target Room --</option></select>
+                            </div>
+                            <button class="btn btn-primary" onclick="generateAndPrintRoomSummary()">👁️ View & Print Room Report</button>
+                        </div>
+                    </div>
+                </section>
+            </main>
+        </div>
+    </div>
+
+    <!-- MODAL POPUP -->
+    <div id="systemReportModal" class="modal-overlay">
+        <div class="modal-body">
+            <span class="close-modal" onclick="closeSystemModal()">&times;</span>
+            <div id="modalCardAnchor"></div>
+            <div style="margin-top: 25px; text-align: right;">
+                <button class="btn btn-primary" onclick="printSingleStatementFromModal()">🖨️ Direct Print Sheet</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- CANVAS FOR PRINTING -->
+    <div id="printContainer"></div>
+
+<script>
+// ADMIN SETTINGS - Change your custom username and password here!
+const ADMIN_USER = "admin";
+const ADMIN_PASS = "12345";
+
+const allowedWashroomRooms = ["2", "3", "4", "5", "6", "7", "8", "9"];
+let systemAdvancesList = [];
+let workerSalariesMapping = {}; 
+let activeModalMarkupData = ""; 
+
+// LOGIN SECURITY GATEWAY
+function handleLoginSubmit() {
+    const userIn = document.getElementById('username').value.trim();
+    const passIn = document.getElementById('password').value.trim();
+    const errorMsg = document.getElementById('login-error');
+
+    if(userIn === ADMIN_USER && passIn === ADMIN_PASS) {
+        document.getElementById('login-page').style.display = 'none';
+        document.getElementById('app-container-wrapper').style.display = 'block';
+        errorMsg.style.display = 'none';
+        loadInitialWorkers();
+    } else {
+        errorMsg.style.display = 'block';
+    }
+}
+
+function handleLogout() {
+    document.getElementById('username').value = "";
+    document.getElementById('password').value = "";
+    document.getElementById('app-container-wrapper').style.display = 'none';
+    document.getElementById('login-page').style.display = 'flex';
+}
+
+function switchView(viewId, element) {
+    document.querySelectorAll('.view-section').forEach(view => view.classList.remove('active-view'));
+    document.querySelectorAll('.menu-item').forEach(item => item.classList.remove('active'));
+    document.getElementById(`view-${viewId}`).classList.add('active-view');
+    element.classList.add('active');
+    if(viewId === 'reports') rebuildRoomSelectDropdown();
+}
+
+function loadInitialWorkers() {
+    const tbody = document.getElementById('workerRows');
+    tbody.innerHTML = ""; 
+    const savedData = localStorage.getItem('workforceSecureCloudStorage');
+    
+    if (savedData) {
+        const parsedData = JSON.parse(savedData);
+        systemAdvancesList = parsedData.advances || [];
+        workerSalariesMapping = parsedData.salaryMap || {};
+        if(parsedData.master) {
+            document.getElementById('totalFoodBill').value = parsedData.master.totalFoodBill || 0;
+            document.getElementById('cookFee').value = parsedData.master.cookFee || 0;
+            document.getElementById('roomRent').value = parsedData.master.roomRentAmount || 0;
+            document.getElementById('washroomFeeMaster').value = parsedData.master.washroomFeeMaster || 0;
+        }
+        parsedData.rows.forEach(item => {
+            const currentSalary = workerSalariesMapping[item.name + "||" + item.room] || 0;
+            createRowMarkup(tbody, item.room, item.name, item.days, item.occupancy, currentSalary);
+        });
+    } else {
+        // Start with a clean row if empty
+        createRowMarkup(tbody, "", "", 0, 1, 0);
+    }
+    document.getElementById('advDate').value = new Date().toISOString().split('T')[0];
+    rebuildWorkerSelectOptions();
+    rebuildAdvanceHistoryTable();
+    calculateExpenses();
+}
+
+function createRowMarkup(tbody, room, name, days, occupancy, salary) {
+    const row = document.createElement('tr');
+    row.innerHTML = `
+        <td><input type="text" class="room-input" value="${room}" oninput="handleTableInput()"></td>
+        <td><input type="text" class="name-input" value="${name}" oninput="handleTableInput()"></td>
+        <td><input type="number" class="salary-input" value="${salary}" oninput="handleTableInput()"></td>
+        <td><input type="number" class="days-input" value="${days}" oninput="handleTableInput()"></td>
+        <td><input type="number" class="occupancy-input" value="${occupancy}" oninput="handleTableInput()"></td>
+        <td class="calculated-food">0.00 SAR</td>
+        <td class="calculated-rent">0.00 SAR</td>
+        <td class="calculated-washroom">0.00 SAR</td>
+        <td class="calculated-cook">0.00 SAR</td>
+        <td class="calculated-total row-total">0.00 SAR</td>
+        <td class="calculated-food-adv" style="font-weight:600; color:#b7791f;">0.00 SAR</td>
+        <td class="calculated-cash-adv" style="font-weight:600; color:#b7791f;">0.00 SAR</td>
+        <td class="calculated-balance row-balance">0.00 SAR</td>
+        <td style="text-align:center;"><button class="btn-action" onclick="viewSystemReportSlip(this)">👁️ View Slip</button></td>
+    `;
+    tbody.appendChild(row);
+}
+
+function handleTableInput() { calculateExpenses(); rebuildWorkerSelectOptions(); }
+function addNewBlankRow() { createRowMarkup(document.getElementById('workerRows'), "", "", 0, 1, 0); handleTableInput(); }
+
+function resetToPdfDefaults() {
+    if(confirm("Wipe local cache clean? This resets the form data views.")) {
+        localStorage.removeItem('workforceSecureCloudStorage');
+        systemAdvancesList = [];
+        workerSalariesMapping = {};
+        loadInitialWorkers();
+    }
+}
+
+function rebuildWorkerSelectOptions() {
+    const select = document.getElementById('advWorkerSelect');
+    const prevSelection = select.value;
+    select.innerHTML = '<option value="">-- Choose Worker --</option>';
+    document.querySelectorAll('#workerRows tr').forEach(row => {
+        const name = row.querySelector('.name-input').value.trim();
+        const room = row.querySelector('.room-input').value.trim();
+        if(name) {
+            const opt = document.createElement('option');
+            opt.value = name + "||" + room;
+            opt.textContent = `${name} (Room ${room})`;
+            select.appendChild(opt);
+        }
+    });
+    if(prevSelection) select.value = prevSelection;
+}
+
+function rebuildRoomSelectDropdown() {
+    const select = document.getElementById('printRoomSelect');
+    select.innerHTML = '<option value="">-- Choose Target Room --</option>';
+    let uniqueRooms = [];
+    document.querySelectorAll('#workerRows tr').forEach(row => {
+        const room = row.querySelector('.room-input').value.trim();
+        if(room && !uniqueRooms.includes(room)) uniqueRooms.push(room);
+    });
+    uniqueRooms.sort((a,b) => String(a).localeCompare(b, undefined, {numeric: true})).forEach(room => {
+        const opt = document.createElement('option');
+        opt.value = room;
+        opt.textContent = `Quarter Room ${room}`;
+        select.appendChild(opt);
+    });
+}
+
+function handleCreateAdvance(e) {
+    e.preventDefault();
+    const selectVal = document.getElementById('advWorkerSelect').value;
+    const type = document.getElementById('advType').value;
+    const amount = parseFloat(document.getElementById('advAmount').value) || 0;
+    const date = document.getElementById('advDate').value;
+    const note = document.getElementById('advNote').value.trim();
+    
+    if(!selectVal || amount <= 0) return;
+    const [name, room] = selectVal.split("||");
+    
+    systemAdvancesList.unshift({ id: Date.now(), name, room, type, amount, date, note: note || "-" });
+    document.getElementById('advAmount').value = "";
+    document.getElementById('advNote').value = "";
+    rebuildAdvanceHistoryTable();
+    calculateExpenses();
+}
+
+function deleteAdvanceItem(id) {
+    systemAdvancesList = systemAdvancesList.filter(item => item.id !== id);
+    rebuildAdvanceHistoryTable();
+    calculateExpenses();
+}
+
+function rebuildAdvanceHistoryTable() {
+    const tbody = document.getElementById('advanceHistoryRows');
+    tbody.innerHTML = "";
+    systemAdvancesList.forEach(item => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td>${item.date}</td>
+            <td style="font-weight:600;">${item.name} <span style="font-size:12px; color:#64748b;">(Room ${item.room})</span></td>
+            <td><strong>${item.type} Advance</strong></td>
+            <td>${item.note}</td>
+            <td style="font-weight:bold; color:#b7791f;">${item.amount.toFixed(2)} SAR</td>
+            <td style="text-align:center;"><button class="btn-delete-log" onclick="deleteAdvanceItem(${item.id})">🗑️</button></td>
+        `;
+        tbody.appendChild(row);
+    });
+}
+
+function calculateExpenses() {
+    const totalFoodBill = parseFloat(document.getElementById('totalFoodBill').value) || 0;
+    const cookFee = parseFloat(document.getElementById('cookFee').value) || 0;
+    const roomRentAmount = parseFloat(document.getElementById('roomRent').value) || 0;
+    const washroomFeeMaster = parseFloat(document.getElementById('washroomFeeMaster').value) || 0;
+
+    const rows = document.querySelectorAll('#workerRows tr');
+    let calculatedTotalManDays = 0;
+
+    rows.forEach(row => {
+        const days = parseFloat(row.querySelector('.days-input').value) || 0;
+        if (days > 0) calculatedTotalManDays += days;
+    });
+
+    if (calculatedTotalManDays <= 0) calculatedTotalManDays = 1;
+    document.getElementById('totalManDays').value = calculatedTotalManDays;
+
+    const amountPerWashroomRoom = washroomFeeMaster / 8;
+    const foodRatePerDay = totalFoodBill / calculatedTotalManDays;
+    workerSalariesMapping = {};
+
+    const saveDataObj = { 
+        master: { totalFoodBill, cookFee, roomRentAmount, washroomFeeMaster }, 
+        rows: [], advances: systemAdvancesList, salaryMap: workerSalariesMapping
+    };
+
+    rows.forEach(row => {
+        const roomVal = row.querySelector('.room-input').value.trim();
+        const nameVal = row.querySelector('.name-input').value.trim();
+        const salaryVal = parseFloat(row.querySelector('.salary-input').value) || 0;
+        const days = parseFloat(row.querySelector('.days-input').value) || 0;
+        const occupancy = parseFloat(row.querySelector('.occupancy-input').value) || 1;
+
+        workerSalariesMapping[nameVal + "||" + roomVal] = salaryVal;
+
+        const foodAdvanceSum = systemAdvancesList
+            .filter(a => a.name.toLowerCase() === nameVal.toLowerCase() && a.room === roomVal && a.type === 'Food')
+            .reduce((sum, item) => sum + item.amount, 0);
+
+        const cashAdvanceSum = systemAdvancesList
+            .filter(a => a.name.toLowerCase() === nameVal.toLowerCase() && a.room === roomVal && a.type === 'Cash')
+            .reduce((sum, item) => sum + item.amount, 0);
+
+        row.querySelector('.calculated-food-adv').innerText = foodAdvanceSum.toFixed(2) + " SAR";
+        row.querySelector('.calculated-cash-adv').innerText = cashAdvanceSum.toFixed(2) + " SAR";
+
+        const individualFood = days * foodRatePerDay;
+        let individualRent = (roomVal === "11") ? 500 : (roomVal === "12" ? 0 : (roomRentAmount / occupancy));
+        let individualWashroomSplit = allowedWashroomRooms.includes(roomVal) ? (amountPerWashroomRoom / occupancy) : 0;
+        const currentCookFee = (days > 0) ? cookFee : 0; 
+
+        const individualTotalExpenses = individualFood + individualRent + individualWashroomSplit + currentCookFee;
+        const finalRemainingSalary = salaryVal - (individualTotalExpenses + foodAdvanceSum + cashAdvanceSum);
+        
+        const balanceCell = row.querySelector('.calculated-balance');
+        balanceCell.innerText = finalRemainingSalary.toFixed(2) + " SAR";
+        balanceCell.className = "calculated-balance row-balance " + (finalRemainingSalary >= 0 ? "balance-extra" : "balance-dues");
+
+        row.querySelector('.calculated-food').innerText = individualFood.toFixed(2) + " SAR";
+        row.querySelector('.calculated-rent').innerText = individualRent.toFixed(2) + " SAR";
+        row.querySelector('.calculated-washroom').innerText = individualWashroomSplit > 0 ? individualWashroomSplit.toFixed(2) + " SAR" : "-";
+        row.querySelector('.calculated-cook').innerText = currentCookFee.toFixed(2) + " SAR";
+        row.querySelector('.calculated-total').innerText = individualTotalExpenses.toFixed(2) + " SAR";
+
+        saveDataObj.rows.push({ room: roomVal, name: nameVal, days, occupancy });
+    });
+
+    localStorage.setItem('workforceSecureCloudStorage', JSON.stringify(saveDataObj));
+}
+
+// SLIP WITHOUT DAYS PORTION
+function buildLaborSlipMarkup(data) {
+    return `
+        <div class="slip-header">
+            <h2>WORKFORCE ACCOUNT STATEMENT REPORT</h2>
+            <p style="margin: 4px 0 0 0; font-size: 13px; letter-spacing: 1.5px; color:#444; font-weight: 600;">INDIVIDUAL ACCOUNT SLIP</p>
+        </div>
+        
+        <div class="section-divider">Laborer Identity Details</div>
+        <div class="info-block"><span>Full Labor Name:</span> <strong>${data.name}</strong></div>
+        <div class="info-block"><span>Quarter Room Number:</span> <strong>Room ${data.roomNo}</strong></div>
+        <div class="info-block"><span>Statement Issuance Date:</span> <span>${new Date().toLocaleDateString()}</span></div>
+
+        <div class="section-divider">Gross Income Base</div>
+        <div class="info-block" style="background:#f0fdf4; padding: 6px;">
+            <span>Base Gross Salary Earnings (+)</span> 
+            <strong style="color: #16a34a; font-size: 16px;">${data.salary.toFixed(2)} SAR</strong>
+        </div>
+
+        <div class="section-divider">Operational Deductions Breakdowns</div>
+        <div class="info-block"><span>Calculated Food Share Cost (-)</span> <span>${data.foodCost}</span></div>
+        <div class="info-block"><span>Allocated Room Rent Portion (-)</span> <span>${data.roomRent}</span></div>
+        <div class="info-block"><span>Washroom Upkeep Maintenance Fee (-)</span> <span>${data.washroom}</span></div>
+        <div class="info-block"><span>Kitchen Cook Service Fee (-)</span> <span>${data.cookFee}</span></div>
+        <div class="info-block" style="font-weight: bold; background:#f1f5f9; padding: 6px;">
+            <span>Total Expense Deductions Subtotal</span> <span>${data.totalExpenses}</span>
+        </div>
+
+        <div class="section-divider">Distributed Vault Advances</div>
+        <div class="info-block"><span>Food Advance (Meal Funds) (-)</span> <span style="color:#b7791f; font-weight:600;">${data.foodAdv}</span></div>
+        <div class="info-block"><span>Personal Cash Advance Distributed (-)</span> <span style="color:#b7791f; font-weight:600;">${data.cashAdv}</span></div>
+
+        <div class="slip-total-box">
+            <span>NET REMAINING BALANCE PAYABLE:</span>
+            <span style="color: ${data.isNegative ? '#dc2626' : '#16a34a'}; font-size: 20px;">${data.remainingBalance}</span>
+        </div>
+
+        <div class="slip-footer-sig">
+            <div class="sig-line">Prepared By (Admin)</div>
+            <div class="sig-line">Labor Signature</div>
+        </div>
+    `;
+}
+
+function buildRoomSummarySlipMarkup(roomNo, workersArray, combinedGrandTotal) {
+    let workersHTML = '';
+    workersArray.forEach(w => {
+        workersHTML += `
+            <div class="room-worker-card">
+                <div class="room-worker-title">
+                    <span>👤 Worker: ${w.name}</span>
+                    <span style="font-size:12px; color:#4a5568;">🗓️ ${w.days} Days</span>
+                </div>
+                <div class="info-block"><span>Food Share:</span> <span>${w.food.toFixed(2)} SAR</span></div>
+                <div class="info-block"><span>Room Rent portion:</span> <span>${w.rent.toFixed(2)} SAR</span></div>
+                <div class="info-block"><span>Kitchen Cook fee:</span> <span>${w.cook.toFixed(2)} SAR</span></div>
+                <div class="info-block"><span>Washroom upkeep:</span> <span>${w.washroom.toFixed(2)} SAR</span></div>
+                <div class="info-block" style="font-weight:bold; margin-top:5px; border-top:1px dashed #bbb; padding-top:4px;">
+                    <span>Total Individual Share:</span> <span>${w.totalExp.toFixed(2)} SAR</span>
+                </div>
+            </div>
+        `;
+    });
+
+    return `
+        <div class="slip-header">
+            <h2>QUARTER ROOM OPERATIONAL SUMMARY REPORT</h2>
+            <p style="margin: 4px 0 0 0; font-size: 13px; letter-spacing: 1.5px; color:#444; font-weight: 600;">ROOM EXPENSE BREAKDOWN BY LABOUR NAME</p>
+        </div>
+        <div class="section-divider">Room Identity Data</div>
+        <div class="info-block"><span>Target Quarter Assignment:</span> <strong>Room ${roomNo}</strong></div>
+        <div class="info-block"><span>Active Registered Occupants:</span> <strong>${workersArray.length} Workers</strong></div>
+        <div class="info-block"><span>Report Compilation Date:</span> <span>${new Date().toLocaleDateString()}</span></div>
+        <div class="section-divider">Itemized Expenses Per Worker</div>
+        ${workersHTML}
+        <div class="slip-total-box" style="margin-top: 30px;">
+            <span>TOTAL CUMULATIVE ROOM DEBIT POOL:</span>
+            <span style="color: #0b1426; font-size: 20px;">${combinedGrandTotal.toFixed(2)} SAR</span>
+        </div>
+        <div class="slip-footer-sig" style="margin-top: 60px;">
+            <div class="sig-line">Compiled By (Admin)</div>
+            <div class="sig-line">Facility Manager Sig</div>
+        </div>
+    `;
+}
+
+function viewSystemReportSlip(btnElement) {
+    const row = btnElement.closest('tr');
+    const data = {
+        roomNo: row.querySelector('.room-input').value.trim() || "N/A",
+        name: row.querySelector('.name-input').value.trim() || "Unnamed Laborer",
+        salary: parseFloat(row.querySelector('.salary-input').value) || 0,
+        foodCost: row.querySelector('.calculated-food').innerText,
+        roomRent: row.querySelector('.calculated-rent').innerText,
+        washroom: row.querySelector('.calculated-washroom').innerText === "-" ? "0.00 SAR" : row.querySelector('.calculated-washroom').innerText,
+        cookFee: row.querySelector('.calculated-cook').innerText,
+        totalExpenses: row.querySelector('.calculated-total').innerText,
+        foodAdv: row.querySelector('.calculated-food-adv').innerText,
+        cashAdv: row.querySelector('.calculated-cash-adv').innerText,
+        remainingBalance: row.querySelector('.calculated-balance').innerText,
+    };
+    data.isNegative = data.remainingBalance.startsWith("-");
+    activeModalMarkupData = buildLaborSlipMarkup(data);
+    document.getElementById('modalCardAnchor').innerHTML = activeModalMarkupData;
+    document.getElementById('systemReportModal').style.display = 'flex';
+}
+
+function closeSystemModal() { document.getElementById('systemReportModal').style.display = 'none'; activeModalMarkupData = ""; }
+function printSingleStatementFromModal() {
+    if(!activeModalMarkupData) return;
+    document.getElementById('printContainer').innerHTML = `<div class="print-slip">${activeModalMarkupData}</div>`;
+    setTimeout(function() { window.print(); }, 250);
+}
+
+function generateAndPrintLaborSlips() {
+    const rows = document.querySelectorAll('#workerRows tr');
+    let printContainerHTML = '';
+    rows.forEach(row => {
+        const data = {
+            roomNo: row.querySelector('.room-input').value.trim() || "N/A",
+            name: row.querySelector('.name-input').value.trim() || "Unnamed Laborer",
+            salary: parseFloat(row.querySelector('.salary-input').value) || 0,
+            foodCost: row.querySelector('.calculated-food').innerText,
+            roomRent: row.querySelector('.calculated-rent').innerText,
+            washroom: row.querySelector('.calculated-washroom').innerText === "-" ? "0.00 SAR" : row.querySelector('.calculated-washroom').innerText,
+            cookFee: row.querySelector('.calculated-cook').innerText,
+            totalExpenses: row.querySelector('.calculated-total').innerText,
+            foodAdv: row.querySelector('.calculated-food-adv').innerText,
+            cashAdv: row.querySelector('.calculated-cash-adv').innerText,
+            remainingBalance: row.querySelector('.calculated-balance').innerText,
+        };
+        data.isNegative = data.remainingBalance.startsWith("-");
+        printContainerHTML += `<div class="print-slip">${buildLaborSlipMarkup(data)}</div>`;
+    });
+    document.getElementById('printContainer').innerHTML = printContainerHTML;
+    setTimeout(function() { window.print(); }, 250);
+}
+
+function generateAndPrintRoomSummary() {
+    const selectedRoom = document.getElementById('printRoomSelect').value;
+    if(!selectedRoom) { alert("Please select a room number!"); return; }
+    const rows = document.querySelectorAll('#workerRows tr');
+    let workersArray = [];
+    let combinedGrandTotal = 0;
+    rows.forEach(row => {
+        const rVal = row.querySelector('.room-input').value.trim();
+        if(rVal === selectedRoom) {
+            const wText = row.querySelector('.calculated-washroom').innerText;
+            const washroomCost = (wText === "-") ? 0 : (parseFloat(wText) || 0);
+            let workerObject = {
+                name: row.querySelector('.name-input').value.trim() || "Unnamed Laborer",
+                days: row.querySelector('.days-input').value || "0",
+                food: parseFloat(row.querySelector('.calculated-food').innerText) || 0,
+                rent: parseFloat(row.querySelector('.calculated-rent').innerText) || 0,
+                cook: parseFloat(row.querySelector('.calculated-cook').innerText) || 0,
+                washroom: washroomCost,
+                totalExp: parseFloat(row.querySelector('.calculated-total').innerText) || 0
+            };
+            combinedGrandTotal += workerObject.totalExp;
+            workersArray.push(workerObject);
+        }
+    });
+    if(workersArray.length === 0) { alert(`No data for Room ${selectedRoom}`); return; }
+    activeModalMarkupData = buildRoomSummarySlipMarkup(selectedRoom, workersArray, combinedGrandTotal);
+    document.getElementById('modalCardAnchor').innerHTML = activeModalMarkupData;
+    document.getElementById('systemReportModal').style.display = 'flex';
+}
+</script>
+</body>
+</html>
